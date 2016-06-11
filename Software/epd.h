@@ -7,7 +7,7 @@
 
 #include "main.h"
 
-extern unsigned char EPD_BG[212000] @ ".extram";
+extern unsigned char EPD_FB[60000];
 
 #define PulseDelay()    {}
 
@@ -41,11 +41,9 @@ void EPD_Power_Off(void);
 void EPD_Power_On(void);
 void EPD_Clear(void);
 void EPD_PrepareWaveform(void);
-void EPD_DispPic(unsigned char *pic);
-void EPD_DispInfo(void);
-void EPD_DispFull(void);
-void EPD_ClearInfo(unsigned char c);
-void EPD_ClearBack(void);
+void EPD_DispPic();
+void EPD_DispScr(unsigned int startLine, unsigned int lineCount);
+void EPD_ClearFB(unsigned char c);
 void EPD_SetPixel(unsigned short x,unsigned short y,unsigned char color);
 void EPD_Line(unsigned short x0,unsigned short y0,unsigned short x1,unsigned short y1,unsigned short color);
 void EPD_PutChar_16(unsigned short x, unsigned short y, unsigned short chr, unsigned char color);

@@ -30,7 +30,7 @@
         <option>
           <name>Variant</name>
           <version>20</version>
-          <state>40</state>
+          <state>38</state>
         </option>
         <option>
           <name>GEndianMode</name>
@@ -61,7 +61,7 @@
         <option>
           <name>FPU</name>
           <version>2</version>
-          <state>5</state>
+          <state>0</state>
         </option>
         <option>
           <name>OGCoreOrChip</name>
@@ -99,7 +99,7 @@
         </option>
         <option>
           <name>OGChipSelectEditMenu</name>
-          <state>STM32F407ZE	ST STM32F407ZE</state>
+          <state>STM32F207VE	ST STM32F207VE</state>
         </option>
         <option>
           <name>GenLowLevelInterface</name>
@@ -138,12 +138,12 @@
         <option>
           <name>GFPUCoreSlave</name>
           <version>20</version>
-          <state>40</state>
+          <state>38</state>
         </option>
         <option>
           <name>GBECoreSlave</name>
           <version>20</version>
-          <state>40</state>
+          <state>38</state>
         </option>
         <option>
           <name>OGUseCmsis</name>
@@ -1080,9 +1080,6 @@
     </file>
     <file>
       <name>$PROJ_DIR$\..\sdcard.c</name>
-    </file>
-    <file>
-      <name>$PROJ_DIR$\..\sram.c</name>
     </file>
     <file>
       <name>$PROJ_DIR$\..\stm32f4xx_it.c</name>

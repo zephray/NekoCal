@@ -9,7 +9,7 @@ void PM_SetCPUFreq(uint8_t freq)
 {
   //PLL_VCO = (HSE_VALUE or HSI_VALUE / PLL_M) * PLL_N
   u8 PLL_M=25;
-  u8 PLL_N=240;
+  u16 PLL_N=240;
   //SYSCLK = PLL_VCO / PLL_P
   u8 PLL_P=2;
   //USB OTG FS, SDIO and RNG Clock =  PLL_VCO / PLLQ
@@ -145,6 +145,11 @@ uint32_t PM_GetVolt()
 void PM_EnterStopMode()
 {
   RCC_APB1PeriphClockCmd(RCC_APB1Periph_PWR,ENABLE);
+  #ifdef MDK_ARM
+	WFI();
+#else
+  asm("WFI");               //÷¥––WFE÷∏¡Ó
+#endif
 }
 
 #ifdef MDK_ARM
@@ -156,7 +161,7 @@ __asm void WFI(void)
 
 void PM_EnterStandbyMode()
 {
-  LCD_PowerSave();
+  //LCD_PowerSave();
   //SPI_Flash_PowerDown();
   RCC_APB1PeriphClockCmd(RCC_APB1Periph_PWR,ENABLE);
   PWR_WakeUpPinCmd(ENABLE);

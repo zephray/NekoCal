@@ -215,9 +215,6 @@
       <name>$PROJ_DIR$\..\sdcard.c</name>
     </file>
     <file>
-      <name>$PROJ_DIR$\..\sram.c</name>
-    </file>
-    <file>
       <name>$PROJ_DIR$\..\stm32f4xx_it.c</name>
     </file>
     <file>

@@ -4,12 +4,14 @@
 #include "ds3231.h"
 #include "znfat.h"
 
-extern const unsigned char gImage_bg[212000];
+extern const unsigned char warning_bg[53000];
 
 unsigned int fcount,fsel;
 
 const int color_bow = 1;
 const int color_wob = 0;
+
+unsigned int bg_err;
 
 u8 BCD2HEX(u8 val)
 {
@@ -52,23 +54,23 @@ int calc_first(int year, int month, int day) {
 void UI_Setting_DispDateTime(uint8_t highlight)
 {
   Time_Handle();
-  EPD_PutChar_24(270,100,Display_Date[2],((highlight==1)?0:3));
-  EPD_PutChar_24(282,100,Display_Date[3],((highlight==1)?0:3));
-  EPD_PutChar_24(306,100,Display_Date[4],3);
-  EPD_PutChar_24(330,100,Display_Date[5],((highlight==2)?0:3));
-  EPD_PutChar_24(342,100,Display_Date[6],((highlight==2)?0:3));
-  EPD_PutChar_24(366,100,Display_Date[7],3);
-  EPD_PutChar_24(390,100,Display_Date[8],((highlight==3)?0:3));
-  EPD_PutChar_24(402,100,Display_Date[9],((highlight==3)?0:3));
+  EPD_PutChar_24(270,100,Display_Date[2],((highlight==1)?0:1));
+  EPD_PutChar_24(282,100,Display_Date[3],((highlight==1)?0:1));
+  EPD_PutChar_24(306,100,Display_Date[4],1);
+  EPD_PutChar_24(330,100,Display_Date[5],((highlight==2)?0:1));
+  EPD_PutChar_24(342,100,Display_Date[6],((highlight==2)?0:1));
+  EPD_PutChar_24(366,100,Display_Date[7],1);
+  EPD_PutChar_24(390,100,Display_Date[8],((highlight==3)?0:1));
+  EPD_PutChar_24(402,100,Display_Date[9],((highlight==3)?0:1));
   
-  EPD_PutChar_24(270,124,Display_Time[0],((highlight==4)?0:3));
-  EPD_PutChar_24(282,124,Display_Time[1],((highlight==4)?0:3));
-  EPD_PutChar_24(306,124,Display_Time[2],3);
-  EPD_PutChar_24(330,124,Display_Time[3],((highlight==5)?0:3));
-  EPD_PutChar_24(342,124,Display_Time[4],((highlight==5)?0:3));
-  EPD_PutChar_24(366,124,Display_Time[5],3);
-  EPD_PutChar_24(390,124,Display_Time[6],((highlight==6)?0:3));
-  EPD_PutChar_24(402,124,Display_Time[7],((highlight==6)?0:3));
+  EPD_PutChar_24(270,124,Display_Time[0],((highlight==4)?0:1));
+  EPD_PutChar_24(282,124,Display_Time[1],((highlight==4)?0:1));
+  EPD_PutChar_24(306,124,Display_Time[2],1);
+  EPD_PutChar_24(330,124,Display_Time[3],((highlight==5)?0:1));
+  EPD_PutChar_24(342,124,Display_Time[4],((highlight==5)?0:1));
+  EPD_PutChar_24(366,124,Display_Time[5],1);
+  EPD_PutChar_24(390,124,Display_Time[6],((highlight==6)?0:1));
+  EPD_PutChar_24(402,124,Display_Time[7],((highlight==6)?0:1));
 }
 
 void UI_Setting_Main()
@@ -82,57 +84,34 @@ void UI_Setting_Main()
   EPD_FastClear();
   EPD_Power_Off();
   
-  EPD_ClearInfo(0x55);
-  EPD_ClearBack();
+  EPD_ClearFB(0xFF);
   
-  EPD_FastFillRect(0,570,800,600,0);
-  EPD_FastFillRect(30,30,785,555,2);
-  EPD_FastFillRect(15,15,770,540,0);
+  EPD_FillRect(0,68,800,560,0);
   
-  EPD_Line(19,67,19,536,3);
-  EPD_Line(20,67,20,536,3);
-  EPD_Line(765,67,765,536,3);
-  EPD_Line(766,67,766,536,3);
+  EPD_String_24(30,573,"KEY1 : Back     KEY2 : Up      KEY3 : Down     KEY4 : Enter",0);
+  EPD_String_24(236,15,"STANDARD CMOS SETUP UTILITY",0);
+  EPD_String_24(151,39,"Copyleft 2016 www.ZephRay.com/EPDCalendar",0);
   
-  EPD_Line(19,67,766,67,3);
-  EPD_Line(19,68,766,68,3);
-  EPD_Line(19,535,766,535,3);
-  EPD_Line(19,536,766,536,3);
+  EPD_String_24(54,100,"Date (yy/mm/dd) :",1);
+  EPD_String_24(54,124,"Time (hh:mm:ss) :",1);
+  //EPD_String_24(54,172,"Background Update Interval : Per day",1);
+  //EPD_String_24(54,196,"Display layout : Default",1);
   
-  EPD_Line(23,71,23,532,3);
-  EPD_Line(24,71,24,532,3);
-  EPD_Line(761,71,761,532,3);
-  EPD_Line(762,71,762,532,3);
+  EPD_Line(31,232,754,232,1);
+  EPD_Line(31,233,754,233,1);
   
-  EPD_Line(23,71,762,71,3);
-  EPD_Line(23,72,762,72,3);
-  EPD_Line(23,531,762,531,3);
-  EPD_Line(23,532,762,532,3);
-  
-  EPD_String_24(30,573,"KEY1 : Back     KEY2 : Up      KEY3 : Down     KEY4 : Enter",3);
-  EPD_String_24(236,15,"STANDARD CMOS SETUP UTILITY",3);
-  EPD_String_24(151,39,"Copyleft 2016 www.ZephRay.com/EPDCalendar",3);
-  
-  EPD_String_24(54,100,"Date (yy/mm/dd) :",3);
-  EPD_String_24(54,124,"Time (hh:mm:ss) :",3);
-  EPD_String_24(54,172,"Background Update Interval : Per day",2);
-  EPD_String_24(54,196,"Display layout : Default",2);
-  
-  EPD_Line(31,232,754,232,3);
-  EPD_Line(31,233,754,233,3);
-  
-  EPD_String_24(54,244,"ST(R) STM32(tm) F407ZET6 ARM Cortex-M4F r1p0",2);
-  EPD_String_24(54,268,"Core : 120MHz  AHB : 60MHz  APB : 30MHz",2);
-  EPD_String_24(54,316,"    Base Memory :    128 KB",2);
-  EPD_String_24(54,340,"     CCM Memory :     64 KB",2);
-  EPD_String_24(54,364,"Extended Memory :    512 KB",2);
-  EPD_String_24(54,388,"---------------------------",2);
-  EPD_String_24(54,412,"   Total Memory :    704 KB",2);
+  EPD_String_24(54,244,"ST(R) STM32(tm) F207VET6 ARM Cortex-M3 r2p0",1);
+  EPD_String_24(54,268,"Core : 120MHz  AHB : 60MHz  APB : 30MHz",1);
+  EPD_String_24(54,316,"    Base Memory :    128 KB",1);
+  EPD_String_24(54,340,"     CCM Memory :      0 KB",1);
+  EPD_String_24(54,364,"Extended Memory :      0 KB",1);
+  EPD_String_24(54,388,"---------------------------",1);
+  EPD_String_24(54,412,"   Total Memory :    128 KB",1);
   
   UI_Setting_DispDateTime(1);
   
   EPD_Power_On();
-  EPD_DispFull();
+  EPD_DispScr(0,600);
   EPD_Power_Off();
   
   i=1;
@@ -145,9 +124,10 @@ void UI_Setting_Main()
     if (Key_Scan(2)&&(BCD2HEX(TimeValue[ValMap[i]])>ValMin[i])) { TimeValue[ValMap[i]] = HEX2BCD(BCD2HEX(TimeValue[ValMap[i]])-1); refresh = 1; }
     if (Key_Scan(3))  {   i++; refresh = 1; }
     if (refresh) {
-      UI_Setting_DispDateTime(i);
       EPD_Power_On();
-      EPD_DispFull();
+      EPD_ClearScr(100,50);
+      UI_Setting_DispDateTime(i);
+      EPD_DispScr(100,50);
       EPD_Power_Off();
       refresh = 0;
     }
@@ -192,37 +172,56 @@ void UI_DispCal()
 
 void UI_DispMain()
 {
-  EPD_PutChar_Legacy(5,540,Display_Time[0],3);
-  EPD_PutChar_Legacy(29,540,Display_Time[1],3);
-  EPD_PutChar_Legacy(53,540,Display_Time[2],3);
-  EPD_PutChar_Legacy(77,540,Display_Time[3],3);
-  EPD_PutChar_Legacy(101,540,Display_Time[4],3);
+  EPD_PutChar_48(5,540,Display_Time[0],1);
+  EPD_PutChar_48(29,540,Display_Time[1],1);
+  EPD_PutChar_48(53,540,Display_Time[2],1);
+  EPD_PutChar_48(77,540,Display_Time[3],1);
+  EPD_PutChar_48(101,540,Display_Time[4],1);
 }
 
 void UI_DispMainFull()
 {
   DS3231_ReadWrite_Time(1);
   Time_Handle();
-  EPD_ClearInfo(0);
-  EPD_ClearBack();
+  
+  UI_DispBG();
+  
+  EPD_ClearFB(0);
   
   UI_DispCal();
   
   UI_DispMain();
   
-  EPD_Power_On();
-  EPD_FastClear();
-  EPD_DispPic(EPD_BG);
-  EPD_Power_Off();
-  
   Delay_Us(1000000);
   
+  //EPD_ClearFB(0x55);
+  
   EPD_Power_On();
-  EPD_DispInfo();
+  EPD_DispScr(530,70);
   EPD_Power_Off();
 
 }
-               
+       
+void UI_EraseBG()
+{
+  unsigned char i;
+  
+  if (FLASH_EraseSector(0x0028, VoltageRange_3) != FLASH_COMPLETE){while (1);}
+  if (FLASH_EraseSector(0x0030, VoltageRange_3) != FLASH_COMPLETE){while (1);}
+    
+}
+
+void UI_ProgBG(unsigned long addr)
+{
+  unsigned long i;
+  
+  for (i=0;i<60000;i++)
+  {
+    FLASH_ProgramByte((0x08020000 + addr + i),EPD_FB[i]);
+  }
+}
+
+
 void UI_PickBg(unsigned char first)
 {
   struct znFAT_Init_Args Init_Args; //文件系统参数集合，用于记录文件系统的重要参数
@@ -255,14 +254,41 @@ void UI_PickBg(unsigned char first)
       if (fsel < (fcount-1)) fsel++; else fsel=0;
     res = znFAT_Open_File(&FileInfo,"\\*.ebm",fsel,1);
     Delay_Us(10000);
-    res = znFAT_ReadData(&FileInfo,0,212000,EPD_BG); 
-    Delay_Us(10000);
-    znFAT_Flush_FS();
+    RCC_HSICmd(ENABLE);
+    FLASH_Unlock();
+    FLASH_ClearFlag(FLASH_FLAG_EOP | FLASH_FLAG_OPERR | FLASH_FLAG_WRPERR |
+                  FLASH_FLAG_PGAERR | FLASH_FLAG_PGPERR|FLASH_FLAG_PGSERR); 
+    UI_EraseBG();
+    res = znFAT_ReadData(&FileInfo,0,60000,EPD_FB); 
+    UI_ProgBG(0);
+    res = znFAT_ReadData(&FileInfo,60000,60000,EPD_FB);
+    UI_ProgBG(60000);
+    res = znFAT_ReadData(&FileInfo,120000,60000,EPD_FB);
+    UI_ProgBG(120000);
+    res = znFAT_ReadData(&FileInfo,180000,32000,EPD_FB);
+    UI_ProgBG(180000);
+    FLASH_Lock();
   }
   
-  /*if (res)
-    for (i=0;i<212000;i++)
-      EPD_BG[i] = gImage_bg[i];*/
+  bg_err = res;
+}
+
+
+
+void UI_DispBG()
+{ 
+  unsigned int i;
+  EPD_Power_On();
+  EPD_FastClear();
+  if (bg_err)
+  {
+    for (i=0;i<53000;i++)
+      EPD_FB[i] = warning_bg[i];
+    EPD_DispScr(0,530);
+  }  
+  else
+    EPD_DispPic();
+  EPD_Power_Off(); 
 }
 
 void TIM3_Init(u32 TIM_scale, u32 TIM_Period)//TIM_Period为16位的数
@@ -309,15 +335,16 @@ void UI_Main()
           UI_DispMainFull();
         nextf --;
       }
-      if (TimeValue[2] == 0)
+      if ((TimeValue[2] == 0)&&(TimeValue[1] == 0))
       {
         UI_PickBg(0);
         UI_DispMainFull();
         nextf = 2;
       }
-      UI_DispMain();
       EPD_Power_On();
-      EPD_DispInfo();
+      EPD_ClearScr(530,70);
+      UI_DispMain();
+      EPD_DispScr(530,70);
       EPD_Power_Off();
     }
     lst = TimeValue[1];

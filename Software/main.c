@@ -65,14 +65,10 @@ int main(void)
   //printf("Systick opened successfully.\r\n");
   //printf("Main Clock Frequency: %d MHz\r\n",(RCC_Clocks.HCLK_Frequency/1000000));
 
-  NVIC_Config();
-  
-  SRAM_GPIO_Config();
-  SRAM_FSMC_Config();
+  //NVIC_Config();
+  PM_SetCPUFreq(120);
   
   EPD_Init();
-  EPD_PrepareWaveform();
-  EPD_SetLegacyFont((unsigned char *)Font_Ascii_24X48E);
   EPD_Power_On();
   EPD_FastClear();
   EPD_Power_Off();
@@ -95,12 +91,10 @@ int main(void)
   
   Key_GPIO_Config();
   
-  //PM_EnterStandbyMode();
-  UI_Main();//Should not return
+  UI_Main();//Should not return*/
   
   while(1)
   {
-    
     
   }
   

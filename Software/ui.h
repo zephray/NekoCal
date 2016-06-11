@@ -5,6 +5,7 @@
 #include "main.h"
 
 void UI_Main(void);
+void UI_DispBG(void);
 
 
 #endif

@@ -9,7 +9,7 @@ TriggerName=main
 LimitSize=0
 ByteLimit=50
 [DebugChecksum]
-Checksum=2097013425
+Checksum=449636081
 [Exceptions]
 StopOnUncaught=_ 0
 StopOnThrow=_ 0
@@ -38,6 +38,8 @@ ITMlogFile=$PROJ_DIR$\ITM.log
 CStepIntDis=_ 0
 [CodeCoverage]
 Enabled=_ 0
+[array_types]
+Fmt0=unsigned char[60000]	4	0
 [SWOTraceWindow]
 PcSampling=0
 InterruptLogs=0

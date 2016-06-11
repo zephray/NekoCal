@@ -4,17 +4,16 @@
 *******************************************************************************/
 #include "epd.h"
 
-unsigned char EPD_InfoBack[120000] @ ".extram";
-unsigned char EPD_InfoView[120000] @ ".extram";
-unsigned char EPD_BG[212000] @ ".extram";
+unsigned char EPD_FB[60000]; //1bpp Framebuffer
+unsigned char EPD_BG[240000] @ 0x08020000; //MAGIC
 
 #define MIN(a,b) (((a)<(b))?(a):(b))
 #define MAX(a,b) (((a)>(b))?(a):(b))
     
-extern const unsigned char WQY_ASCII_16[];
-extern const unsigned char WQY_ASCII_24[];
-
-uint8_t *Curr_Font;
+extern const unsigned char Font_Ascii_8X16E[];
+extern const unsigned char Font_Ascii_24X48E[];
+extern const unsigned char Font_Ascii_12X24E[];
+//extern const unsigned char WQY_ASCII_24[];
 
 //黑白黑白刷屏。最终到达白背景
 #define FRAME_INIT_LEN 		35
@@ -32,15 +31,6 @@ const unsigned char wave_init[FRAME_INIT_LEN]=
 0,0,
 };
 
-#define FRAME_INIT_RAPID_LEN     10
-
-const unsigned char wave_init_rapid[FRAME_INIT_RAPID_LEN]=
-{
-  0x55,0x55,0x55,0x55,
-  0xaa,0xaa,0xaa,0xaa,
-  0,0,
-};
-
 #define FRAME_INIT_FAST_LEN     21
 
 const unsigned char wave_init_fast[FRAME_INIT_FAST_LEN]=
@@ -51,46 +41,17 @@ const unsigned char wave_init_fast[FRAME_INIT_FAST_LEN]=
   0xaa,0xaa,0xaa,0xaa,0xaa,
   0,
 };
-/*
-#define FRAME_END_LEN		8
-unsigned char wave_end[4][FRAME_END_LEN]=
+
+const unsigned char timA[16] =
 {
-0,0,0,0,0,0,0,0,				//GC3->GC0
-1,1,0,0,0,0,0,0,				//GC3->GC1
-1,1,1,1,0,0,0,0,				//GC3->GC2
-1,1,1,1,1,1,0,0,				//GC3->GC3
+// 1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16
+  30,20,20,15,15,15,15,15,20,20,20,20,20,40,50,60
 };
 
-#define FRAME_BEGIN_LEN		10
-unsigned char wave_begin[4][FRAME_BEGIN_LEN]=
-{
-0,0,0,0,0,0,0,0,0,0,				//GC3->GC0
-2,2,2,0,0,0,0,0,0,0,				//GC3->GC1
-2,2,2,2,2,0,0,0,0,0,				//GC3->GC2
-2,2,2,2,2,2,2,2,0,0,				//GC3->GC3
-};*/
+#define timB 40
 
-#define FRAME_BEGIN_LEN		10
-unsigned char wave_begin[4][FRAME_BEGIN_LEN]=
-{
-0,1,1,1,1,2,2,2,2,0,						//GC3->GC3
-0,0,1,1,1,2,2,2,2,0,						//GC2->GC3
-0,0,0,1,1,2,2,2,2,0,						//GC1->GC3
-0,0,0,0,1,2,2,2,2,0,						//GC0->GC3
-};
-
-//从白刷到新图片
-#define FRAME_END_LEN		7
-unsigned char wave_end[4][FRAME_END_LEN]=
-{
-0,0,0,0,0,0,0,				//GC3->GC3
-0,1,0,0,0,0,0,				//GC3->GC2
-0,1,1,0,0,0,0,				//GC3->GC1
-0,1,1,1,1,0,0,				//GC3->GC0
-};
-
-unsigned char wave_begin_table[256][FRAME_BEGIN_LEN] @ ".ccmram";
-unsigned char wave_end_table[256][FRAME_END_LEN] @ ".ccmram";
+#define clearCount 2
+#define setCount 2
 
 unsigned char g_dest_data[200];				//送到电子纸的一行数据缓存
 
@@ -122,20 +83,17 @@ void EPD_GPIO_Init()
   RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOA,ENABLE);
   RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOC,ENABLE);
   RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOE,ENABLE);
-  RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOG,ENABLE);
+  RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOD,ENABLE);
   
-  GPIOG->BSRRH = GPIO_Pin_12;//TURN OFF ALL VOLTAGES BEFORE NEXT
-  GPIOG->BSRRH = GPIO_Pin_13;
-  GPIOG->BSRRH = GPIO_Pin_14;
-  GPIOG->BSRRH = GPIO_Pin_15;
+  GPIOD->BSRRH = GPIO_Pin_4;//TURN OFF ALL VOLTAGES BEFORE NEXT
   
   //Power controll
   GPIO_InitStructure.GPIO_Mode = GPIO_Mode_OUT;
   GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
-  GPIO_InitStructure.GPIO_Pin = GPIO_Pin_12|GPIO_Pin_13|GPIO_Pin_14|GPIO_Pin_15;
+  GPIO_InitStructure.GPIO_Pin = GPIO_Pin_4;
   GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_NOPULL;
   GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
-  GPIO_Init(GPIOG,&GPIO_InitStructure);
+  /*GPIO_Init(GPIOD,&GPIO_InitStructure);*/
   
   //Source&Gate Driver
   GPIO_InitStructure.GPIO_Pin = GPIO_Pin_1|GPIO_Pin_2|GPIO_Pin_3|GPIO_Pin_4|
@@ -155,20 +113,13 @@ void EPD_Power_Off(void)
 {
   GPIO_InitTypeDef GPIO_InitStructure;
   
-  GPIOG->BSRRH = GPIO_Pin_15;
-  DelayCycle(400);
-  GPIOG->BSRRH = GPIO_Pin_14;
-  DelayCycle(20);
-  GPIOG->BSRRH = GPIO_Pin_13;
-  DelayCycle(20);
-  GPIOG->BSRRH = GPIO_Pin_12;
-  DelayCycle(400);
+  GPIOD->BSRRH = GPIO_Pin_4;
   
   GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IN;
-  GPIO_InitStructure.GPIO_Pin = GPIO_Pin_13|GPIO_Pin_14|GPIO_Pin_15;
+  GPIO_InitStructure.GPIO_Pin = GPIO_Pin_4;
   GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_NOPULL;
   GPIO_InitStructure.GPIO_Speed = GPIO_Speed_2MHz;
-  GPIO_Init(GPIOG,&GPIO_InitStructure);
+  GPIO_Init(GPIOD,&GPIO_InitStructure);
 }
 
 void EPD_Init(void)
@@ -191,10 +142,9 @@ void EPD_Init(void)
   EPD_SPV_H();
   EPD_CKV_L();
   
-  for (i=0;i<120000;i++)
+  for (i=0;i<60000;i++)
   {
-    EPD_InfoBack[i]=0;
-    EPD_InfoView[i]=0;
+    EPD_FB[i]=0;
   }
 }
 
@@ -223,9 +173,9 @@ void EPD_Send_Row_Data(u8 *pArray)
   
   for (i=0;i<200;i++)
   {
-    GPIOC->ODR = a|pArray[i];
+    GPIOC->ODR = pArray[i];
     EPD_CL_H();
-    DelayCycle(1);
+    //DelayCycle(1);
     EPD_CL_L();
   }
   
@@ -275,7 +225,7 @@ void EPD_SkipRow(void)
   {
     GPIOC->ODR = a;
     EPD_CL_H();
-    DelayCycle(1);
+    //DelayCycle(1);
     EPD_CL_L();
   }
   
@@ -297,7 +247,7 @@ void EPD_SkipRow(void)
   EPD_CKV_H(); 
 }
 
-void EPD_Send_Row_Data_Slow(u8 *pArray)  
+void EPD_Send_Row_Data_Slow(u8 *pArray,unsigned char timingA,unsigned char timingB)  
 {
   unsigned char i;
   unsigned short a;
@@ -310,7 +260,7 @@ void EPD_Send_Row_Data_Slow(u8 *pArray)
   
   for (i=0;i<200;i++)
   {
-    GPIOC->ODR = a|pArray[i];
+    GPIOC->ODR = pArray[i];
     EPD_CL_H();
     //DelayCycle(1);
     EPD_CL_L();
@@ -337,76 +287,19 @@ void EPD_Send_Row_Data_Slow(u8 *pArray)
   
   EPD_CKV_H();
   
-  DelayCycle(90);
+  DelayCycle(timingA);
   
   EPD_CKV_L();
   
-  DelayCycle(20);
+  DelayCycle(timingB);
   
   EPD_OE_L();
   
   EPD_CL_H();
   EPD_CL_L();
   EPD_CL_H();
-  EPD_CL_L();
-       
-  //
-}
-
-void EPD_Send_Row_Data_Medium(u8 *pArray)  
-{
-  unsigned char i;
-  unsigned short a;
+  EPD_CL_L();  
   
-  a = GPIOC->IDR & 0xFF00;
-  
-  EPD_OE_H();
-  
-  EPD_SPH_L();                                          
-  
-  for (i=0;i<200;i++)
-  {
-    GPIOC->ODR = a|pArray[i];
-    EPD_CL_H();
-    //DelayCycle(1);
-    EPD_CL_L();
-  }
-  
-  EPD_SPH_H();
-  
-  EPD_CL_H();
-  EPD_CL_L();
-  EPD_CL_H();
-  EPD_CL_L();
-  
-  EPD_LE_H(); 
-  EPD_CL_H();
-  EPD_CL_L();
-  EPD_CL_H();
-  EPD_CL_L();
-  
-  EPD_LE_L();
-  EPD_CL_H();
-  EPD_CL_L();
-  EPD_CL_H();
-  EPD_CL_L();
-  
-  EPD_CKV_H();
-  
-  DelayCycle(60);
-  
-  EPD_CKV_L();
-  
-  DelayCycle(20);
-  
-  EPD_OE_L();
-  
-  EPD_CL_H();
-  EPD_CL_L();
-  EPD_CL_H();
-  EPD_CL_L();
-       
-  //
 }
 
 void EPD_Vclock_Quick(void)
@@ -437,92 +330,7 @@ void EPD_Start_Scan(void)
   EPD_Vclock_Quick();
 }
 
-//生成于RAM中的波形表，以提高屏的扫描速度
-void EPD_PrepareWaveform(void)
-{
-	int frame, num;
-	unsigned char tmp,value;
-
-        //wave_begin_table
-	for(frame=0; frame<FRAME_BEGIN_LEN; frame++)
-	{		
-		for(num=0; num<256; num++)
-		{
-			tmp = 0;
-			tmp = wave_begin[(num>>6)&0x3][frame];
-					
-			tmp = tmp<< 2;
-			tmp &= 0xfffc;
-			tmp |= wave_begin[(num>>4)&0x3][frame];
-
-			tmp = tmp<< 2;
-			tmp &= 0xfffc;
-			tmp |= wave_begin[(num>>2)&0x3][frame];
-
-			tmp = tmp<< 2;
-			tmp &= 0xfffc;
-			tmp |= wave_begin[(num)&0x3][frame];
-
-			value = 0;
-			value = (tmp <<6) & 0xc0;
-			value += (tmp<<2) & 0x30;
-			value += (tmp>>2) & 0x0c;
-			value += (tmp>>6) & 0x03;
-			wave_begin_table[num][frame] = value;
-		}
-	}
-        
-	//wave_end_table
-	for(frame=0; frame<FRAME_END_LEN; frame++)
-	{		
-		for(num=0; num<256; num++)
-		{
-			tmp = 0;
-			tmp = wave_end[(num>>6)&0x3][frame];
-					
-			tmp = tmp<< 2;
-			tmp &= 0xfffc;
-			tmp |= wave_end[(num>>4)&0x3][frame];
-
-			tmp = tmp<< 2;
-			tmp &= 0xfffc;
-			tmp |= wave_end[(num>>2)&0x3][frame];
-
-			tmp = tmp<< 2;
-			tmp &= 0xfffc;
-			tmp |= wave_end[(num)&0x3][frame];
-
-			value = 0;
-			value = (tmp <<6) & 0xc0;
-			value += (tmp<<2) & 0x30;
-			value += (tmp>>2) & 0x0c;
-			value += (tmp>>6) & 0x03;
-			wave_end_table[num][frame] = value;
-		}
-	}
-}
-
-void line_data_init(u8 frame)
-{
-	int i;
-	
-	for(i=0; i<200; i++)
-	{
-		g_dest_data[i] = wave_init[frame];	
-	}	
-}
-
-void line_begin_pic(u8 *old_pic, u8 frame)
-{
-	int i;
-	
-	for(i=0; i<200; i++)
-	{
-		g_dest_data[i] = wave_begin_table[old_pic[i]][frame];	
-	}	
-}
-
-void EPD_EncodeLine_Pic(u8 *new_pic, u8 frame)
+void EPD_EncodeLine_Pic(u8 *new_pic, u8 frame)//纯白-》16灰
 {
 	int i,j;
         unsigned char k,d;
@@ -541,50 +349,33 @@ void EPD_EncodeLine_Pic(u8 *new_pic, u8 frame)
 	}	
 }
 
-void line_end_pic(u8 *new_pic, u8 frame)
-{
-	int i;
-	
-	for(i=0; i<200; i++)
-	{
-		g_dest_data[i] = wave_end_table[new_pic[i]][frame];	
-	}	
-}
-
 void EPD_Power_On(void)
 {
   GPIO_InitTypeDef GPIO_InitStructure;
   
-  GPIOG->BSRRL = GPIO_Pin_12;
-  DelayCycle(20);
-  GPIOG->BSRRL = GPIO_Pin_13;
-  DelayCycle(20);
-  GPIOG->BSRRL = GPIO_Pin_14;
-  DelayCycle(20);
-  GPIOG->BSRRL = GPIO_Pin_15;
-  DelayCycle(400);
+  GPIOD->BSRRL = GPIO_Pin_4;
   
   GPIO_InitStructure.GPIO_Mode = GPIO_Mode_OUT;
   GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
-  GPIO_InitStructure.GPIO_Pin = GPIO_Pin_13|GPIO_Pin_14|GPIO_Pin_15;
+  GPIO_InitStructure.GPIO_Pin = GPIO_Pin_4;
   GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_NOPULL;
   GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
-  GPIO_Init(GPIOG,&GPIO_InitStructure);
+  GPIO_Init(GPIOD,&GPIO_InitStructure);
 }
 
 void EPD_Clear(void)
 {
-  unsigned short line,frame;
+  unsigned short line,frame,i;
   
   for(frame=0; frame<FRAME_INIT_LEN; frame++)			
   {
     EPD_Start_Scan();
     for(line=0; line<600; line++)
     {
-      line_data_init(frame);							//14ms
-      EPD_Send_Row_Data( g_dest_data );				//40ms
+      for(i=0;i<200;i++)  g_dest_data[i]=wave_init[frame];	
+      EPD_Send_Row_Data( g_dest_data );
     }
-    EPD_Send_Row_Data( g_dest_data );					//最后一行还需GATE CLK,故再传一行没用数据
+    EPD_Send_Row_Data( g_dest_data );			
   }
 }
 
@@ -594,38 +385,60 @@ void EPD_FastClear(void)
   
   for(frame=0; frame<FRAME_INIT_FAST_LEN; frame++)			
   {
+    for(i=0;i<200;i++)  g_dest_data[i]=wave_init_fast[frame];		
     EPD_Start_Scan();
+    
     for(line=0; line<600; line++)
     {
-      for(i=0;i<200;i++)  g_dest_data[i]=wave_init_fast[frame];		
-      EPD_Send_Row_Data( g_dest_data );				//40ms
+      EPD_Send_Row_Data( g_dest_data );				
     }
-    EPD_Send_Row_Data( g_dest_data );					//最后一行还需GATE CLK,故再传一行没用数据
+    EPD_Send_Row_Data( g_dest_data );
   }
 }
 
-void EPD_DispPic(unsigned char *img)
+void EPD_DispPic()
 {
   unsigned short frame;
-  signed short line;
+  signed long line;
   unsigned long i;
   unsigned char *ptr;
   
-  ptr = img;
+  ptr = EPD_BG;
   
     //从黑刷到灰度
-  for(frame=0; frame<10; frame++)					
+  for(frame=0; frame<16; frame++)					
+  {
+    EPD_Start_Scan();
+    for (i=0;i<200;i++) g_dest_data[i]=0x00;
+    for(line=0; line<70; line++)
+    {
+      EPD_Send_Row_Data_Slow(g_dest_data,timA[frame],timB);
+    }
+    for(line=(530-1); line>=0; line--)
+    {
+      EPD_EncodeLine_Pic(ptr + line*400, frame);		
+      EPD_Send_Row_Data_Slow(g_dest_data,timA[frame],timB);		
+    }	
+    
+    EPD_Send_Row_Data( g_dest_data );				
+  }
+  /*for(frame=0; frame<10; frame++)					
   {
     EPD_Start_Scan();
     
-    for(line=0; line<70; line++)
+    for(line=0; line<skipBefore; line++)
     {
       EPD_SkipRow();
     }
-    for(line=530-1; line>=0; line--)
+    for(line=(lineCount-1); line>=0; line--)
     {
       EPD_EncodeLine_Pic(ptr + line*400, frame);		
-      EPD_Send_Row_Data_Medium(g_dest_data);		
+      EPD_Send_Row_Data_Slow(g_dest_data,timingA_2,timingB_2);		
+    }
+    EPD_Send_Row_Data_Slow(g_dest_data,timingA_2,timingB_2);	
+    for(line=0; line<skipAfter; line++)
+    {
+      EPD_SkipRow();
     }
     EPD_Send_Row_Data( g_dest_data );				
   }
@@ -634,14 +447,19 @@ void EPD_DispPic(unsigned char *img)
   {
     EPD_Start_Scan();
     
-    for(line=0; line<70; line++)
+    for(line=0; line<skipBefore; line++)
     {
       EPD_SkipRow();
     }
-    for(line=530-1; line>=0; line--)
+    for(line=(lineCount-1); line>=0; line--)
     {
       EPD_EncodeLine_Pic(ptr + line*400, frame);		
-      EPD_Send_Row_Data_Slow(g_dest_data);		
+      EPD_Send_Row_Data_Slow(g_dest_data,timingA_1,timingB_1);		
+    }
+    EPD_Send_Row_Data_Slow(g_dest_data,timingA_1,timingB_1);	
+    for(line=0; line<skipAfter; line++)
+    {
+      EPD_SkipRow();
     }
     EPD_Send_Row_Data( g_dest_data );				
   }
@@ -650,135 +468,176 @@ void EPD_DispPic(unsigned char *img)
   {
     EPD_Start_Scan();
     
-    for(line=0; line<70; line++)
+    for(line=0; line<skipBefore; line++)
     {
       EPD_SkipRow();
     }
-    for(line=530-1; line>=0; line--)
+    for(line=(lineCount-1); line>=0; line--)
     {
       EPD_EncodeLine_Pic(ptr + line*400, frame);		
       EPD_Send_Row_Data(g_dest_data);		
     }
+    EPD_Send_Row_Data( g_dest_data );
+    for(line=0; line<skipAfter; line++)
+    {
+      EPD_SkipRow();
+    }
     EPD_Send_Row_Data( g_dest_data );				
-  }
-}
-
-void EPD_DispInfo(void)
-{
-  unsigned short frame;
-  signed short line;
-  unsigned long i;
-  unsigned char *ptr;
-  
-  ptr = EPD_InfoBack;
-  
-  for(frame=0; frame<FRAME_BEGIN_LEN-2; frame++)					
-  {
-    EPD_Start_Scan();
-    for(line=(600-1); line>=(600-70); line--)
-    {
-      line_begin_pic(ptr + line*200, frame);
-      EPD_Send_Row_Data( g_dest_data );
-    }
-    for(i=0;i<200;i++)  g_dest_data[i]=0x00;
-    
-    for(line=0;line<(600-70);line++)
-    {
-      line_begin_pic(ptr, frame);
-      EPD_SkipRow();
-    }
-    EPD_Send_Row_Data( g_dest_data );					
-  }
-  
-  //WTF
-  /*for(frame=0; frame<FRAME_INIT_RAPID_LEN; frame++)					
-  {
-    EPD_Start_Scan();
-    
-    for(line=(600-1); line>=(600-70); line--)
-    {
-      for(i=0;i<200;i++)  g_dest_data[i]=wave_init_rapid[frame];
-      EPD_Send_Row_Data( g_dest_data );
-    }
-    for(line=0;line<(600-70);line++)
-      EPD_SkipRow();
-    EPD_Send_Row_Data( g_dest_data );					
   }*/
-  
-  ptr = EPD_InfoView;
-  
-  for(frame=0; frame<FRAME_END_LEN-2; frame++)					
-  {
-    EPD_Start_Scan();
-    for(line=(600-1); line>=(600-70); line--)
-    {
-      line_end_pic(ptr + line*200, frame);
-      EPD_Send_Row_Data( g_dest_data );
-    }
-    for(i=0;i<200;i++)  g_dest_data[i]=0x00;
-
-    for(line=0;line<(600-70);line++)
-    {
-      line_end_pic(ptr, frame);
-      EPD_SkipRow();
-    }
-    EPD_Send_Row_Data( g_dest_data );					
-  }
-  
-  for (i=0;i<120000;i++)
-    EPD_InfoBack[i] = EPD_InfoView[i];
 }
 
-void EPD_DispFull(void)
+void EPD_EncodeLine_To(u8 *new_pic)//纯白 ->单色
+{
+	int i,j;
+        unsigned char k,d;
+	
+        j=0;
+	for(i=0; i<100; i++)
+	{
+          k = new_pic[i];
+          d = 0;
+          if (k&0x01) d |= 0x40;
+          if (k&0x02) d |= 0x10;
+          if (k&0x04) d |= 0x04;
+          if (k&0x08) d |= 0x01;
+          g_dest_data[j++] = d;
+          d = 0;
+          if (k&0x10) d |= 0x40;
+          if (k&0x20) d |= 0x10;
+          if (k&0x40) d |= 0x04;
+          if (k&0x80) d |= 0x01;
+          g_dest_data[j++] = d;
+	}	
+}
+
+void EPD_EncodeLine_From(u8 *new_pic)//单色 -> 纯黑
+{
+	int i,j;
+        unsigned char k,d;
+	
+        j=0;
+	for(i=0; i<100; i++)
+	{
+          k = ~new_pic[i];
+          d = 0;
+          if (k&0x01) d |= 0x40;
+          if (k&0x02) d |= 0x10;
+          if (k&0x04) d |= 0x04;
+          if (k&0x08) d |= 0x01;
+          g_dest_data[j++] = d;
+          d = 0;
+          if (k&0x10) d |= 0x40;
+          if (k&0x20) d |= 0x10;
+          if (k&0x40) d |= 0x04;
+          if (k&0x80) d |= 0x01;
+          g_dest_data[j++] = d;
+	}	
+}
+
+void EPD_DispScr(unsigned int startLine, unsigned int lineCount)
 {
   unsigned short frame;
   signed short line;
   unsigned long i;
   unsigned char *ptr;
+  unsigned long skipBefore,skipAfter;
   
-  ptr = EPD_InfoBack;
+  ptr = EPD_FB;
   
-  for(frame=0; frame<FRAME_BEGIN_LEN-2; frame++)					
+  skipBefore = 600-startLine-lineCount;
+  skipAfter = startLine;
+  
+  for(frame=0; frame<setCount; frame++)					
   {
     EPD_Start_Scan();
-    for(line=(600-1); line>=0; line--)
+    for(line=0;line<skipBefore;line++)
     {
-      line_begin_pic(ptr + line*200, frame);
+      EPD_EncodeLine_To(ptr);
+      EPD_SkipRow();
+    }
+    for(line=(lineCount-1); line>=0; line--)
+    {
+      EPD_EncodeLine_To(ptr + (line+startLine)*100);
       EPD_Send_Row_Data( g_dest_data );
-    }				
+    }
+    EPD_Send_Row_Data( g_dest_data );
+    for(line=0;line<skipAfter;line++)
+    {
+      EPD_EncodeLine_To(ptr);
+      EPD_SkipRow();
+    }
+    EPD_Send_Row_Data( g_dest_data );					
   }
   
-  ptr = EPD_InfoView;
-  
-  for(frame=0; frame<FRAME_END_LEN-2; frame++)					
-  {
-    EPD_Start_Scan();
-    for(line=(600-1); line>=0; line--)
-    {
-      line_end_pic(ptr + line*200, frame);
-      EPD_Send_Row_Data( g_dest_data );
-    }				
-  }
-  
-  for (i=0;i<120000;i++)
-    EPD_InfoBack[i] = EPD_InfoView[i];
 }
 
-void EPD_ClearInfo(unsigned char c)
+void EPD_ClearScr(unsigned int startLine, unsigned int lineCount)
+{
+  unsigned short frame;
+  signed short line;
+  unsigned long i;
+  unsigned char *ptr;
+  unsigned long skipBefore,skipAfter;
+  
+  ptr = EPD_FB;
+  
+  skipBefore = 600-startLine-lineCount;
+  skipAfter = startLine;
+  
+  for(frame=0; frame<clearCount; frame++)					
+  {
+    EPD_Start_Scan();
+    for(line=0;line<skipBefore;line++)
+    {
+      EPD_EncodeLine_From(ptr);
+      EPD_SkipRow();
+    }
+    for(line=(lineCount-1); line>=0; line--)
+    {
+      EPD_EncodeLine_From(ptr + (line+startLine)*100);
+      EPD_Send_Row_Data( g_dest_data );
+    }
+    EPD_Send_Row_Data( g_dest_data );
+    for(line=0;line<skipAfter;line++)
+    {
+      EPD_EncodeLine_From(ptr);
+      EPD_SkipRow();
+    }
+    EPD_Send_Row_Data( g_dest_data );					
+  }
+  
+  for(frame=0; frame<4; frame++)					
+  {
+    EPD_Start_Scan();
+    for(line=0;line<skipBefore;line++)
+    {
+      EPD_SkipRow();
+    }
+    for(line=(lineCount-1); line>=0; line--)
+    {
+      for(i=0;i<200;i++)  g_dest_data[i]=0xaa;
+      EPD_Send_Row_Data( g_dest_data );
+    }
+    EPD_Send_Row_Data( g_dest_data );
+    for(line=0;line<skipAfter;line++)
+    {;
+      EPD_SkipRow();
+    }
+    EPD_Send_Row_Data( g_dest_data );					
+  }
+  
+  
+}
+
+
+void EPD_ClearFB(unsigned char c)
 {
   unsigned long i;
   
-  for (i=0;i<120000;i++)
-    EPD_InfoView[i]=c;
+  for (i=0;i<60000;i++)
+    EPD_FB[i]=c;
 }
 
-void EPD_ClearBack(void)
-{
-  unsigned long i;
-  
-  for (i=0;i<120000;i++)
-    EPD_InfoBack[i]=0x00;
-}
 
 void EPD_SetPixel(unsigned short x,unsigned short y,unsigned char color)
 {
@@ -787,11 +646,11 @@ void EPD_SetPixel(unsigned short x,unsigned short y,unsigned char color)
   
   if ((x<800)&&(y<600))
   {
-    x_byte=x/4+y*200;
-    x_bit=(x%4)<<1;             
+    x_byte=x/8+y*100;
+    x_bit=x%8;             
   
-    EPD_InfoView[x_byte] &= ~(0x03 << x_bit);
-    EPD_InfoView[x_byte] |= (color << x_bit);
+    EPD_FB[x_byte] &= ~(1 << x_bit);
+    EPD_FB[x_byte] |= (color << x_bit);
   }
 }
 
@@ -877,66 +736,50 @@ void EPD_Line(unsigned short x0,unsigned short y0,unsigned short x1,unsigned sho
   } 
 }
 
-void EPD_SetLegacyFont(unsigned char * font)
-{
-  Curr_Font = font;
-}
 
 void EPD_PutChar_16(unsigned short x, unsigned short y, unsigned short chr, unsigned char color)
 {
   unsigned short x1,y1;
   unsigned short ptr;
   
-  ptr=(chr-0x20)*64;
+  ptr=(chr-0x20)*16;
   for (y1=0;y1<16;y1++)
   {
-    for (x1=0;x1<8;x1+=2)
+    for (x1=0;x1<8;x1++)
     {
-      if (color)
-      {
-        EPD_SetPixel(x+x1+1,y+y1,3-((WQY_ASCII_16[ptr] & 0xF)>>2)); 
-        EPD_SetPixel(x+x1,y+y1, 3-(WQY_ASCII_16[ptr] >> 6)); 
-        ptr++;
-      }
+      if ((Font_Ascii_8X16E[ptr]>>x1)&0x01)
+        EPD_SetPixel(x+x1,y+y1,color);
       else
-      {
-        EPD_SetPixel(x+x1+1,y+y1,(WQY_ASCII_16[ptr] & 0xF)>>2); 
-        EPD_SetPixel(x+x1,y+y1, WQY_ASCII_16[ptr] >> 6); 
-        ptr++;
-      }
+        EPD_SetPixel(x+x1,y+y1,1-color);
     }
-    
+    ptr++;
   }
 }
 
 void EPD_PutChar_24(unsigned short x, unsigned short y, unsigned short chr, unsigned char color)
 {
-  unsigned short x1,y1;
+  unsigned short x1,y1,b;
   unsigned short ptr;
   
-  ptr=(chr-0x20)*144;
+  ptr=(chr-0x20)*48;
   for (y1=0;y1<24;y1++)
   {
-    for (x1=0;x1<12;x1+=2)
-    {
-      if (color)
-      {
-        EPD_SetPixel(x+x1+1,y+y1,3-((WQY_ASCII_24[ptr] & 0xF)>>2)); 
-        EPD_SetPixel(x+x1,y+y1, 3-(WQY_ASCII_24[ptr] >> 6)); 
-        ptr++;
-      }
-      else
-      {
-        EPD_SetPixel(x+x1+1,y+y1,(WQY_ASCII_24[ptr] & 0xF)>>2); 
-        EPD_SetPixel(x+x1,y+y1, WQY_ASCII_24[ptr] >> 6); 
-        ptr++;
-      }
-    }
-    
+      for (b=0;b<8;b++)
+        if ((Font_Ascii_12X24E[ptr]<<b)&0x80)
+          EPD_SetPixel(x+b,y+y1,color); 
+        else
+          EPD_SetPixel(x+b,y+y1,1-color);
+      ptr++; 
+      for (b=0;b<4;b++)
+        if ((Font_Ascii_12X24E[ptr]<<b)&0x80)
+          EPD_SetPixel(x+8+b,y+y1,color); 
+        else
+          EPD_SetPixel(x+8+b,y+y1,1-color);
+      ptr++; 
   }
 }
 
-void EPD_PutChar_Legacy(unsigned short x, unsigned short y, unsigned short chr, unsigned char color)
+void EPD_PutChar_48(unsigned short x, unsigned short y, unsigned short chr, unsigned char color)
 {
   unsigned short x1,y1,b;
   unsigned short ptr;
@@ -947,10 +790,10 @@ void EPD_PutChar_Legacy(unsigned short x, unsigned short y, unsigned short chr, 
     for (x1=0;x1<24;x1+=8)
     {
       for (b=0;b<8;b++)
-        if ((Curr_Font[ptr]>>b)&0x01)
+        if ((Font_Ascii_24X48E[ptr]>>b)&0x01)
           EPD_SetPixel(x+x1+b,y+y1,color); 
         else
-          EPD_SetPixel(x+x1+b,y+y1,3-color);
+          EPD_SetPixel(x+x1+b,y+y1,1-color);
       ptr++;
     }  
   }
@@ -994,7 +837,7 @@ void EPD_FillRect(unsigned short x1,unsigned short y1,unsigned short x2,unsigned
       EPD_SetPixel(x,y,color);
 }
 
-void EPD_FastFillRect(unsigned short x1,unsigned short y1,unsigned short x2,unsigned short y2,unsigned char color)
+/*void EPD_FastFillRect(unsigned short x1,unsigned short y1,unsigned short x2,unsigned short y2,unsigned char color)
 {
   unsigned short x,x1a,x2a,y;
   unsigned char c;
@@ -1013,4 +856,4 @@ void EPD_FastFillRect(unsigned short x1,unsigned short y1,unsigned short x2,unsi
       for (x=(x2a*4);x<x2;x++)
         EPD_SetPixel(x,y,color);
   }
-}
+}*/

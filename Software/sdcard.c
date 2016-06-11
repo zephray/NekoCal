@@ -724,9 +724,13 @@ SD_Error SD_PowerON(void)
   SDIO_InitStructure.SDIO_HardwareFlowControl = SDIO_HardwareFlowControl_Disable;
   SDIO_Init(&SDIO_InitStructure);
 
+  SDIO_ClockCmd(DISABLE);
+  
   /*!< Set Power State to ON */
   SDIO_SetPowerState(SDIO_PowerState_ON);
 
+  Delay_Us(1000);
+  
   /*!< Enable SDIO Clock */
   SDIO_ClockCmd(ENABLE);
 
@@ -767,17 +771,7 @@ SD_Error SD_PowerON(void)
     CardType = SDIO_STD_CAPACITY_SD_CARD_V2_0; /*!< SD Card 2.0 */
     SDType = SD_HIGH_CAPACITY;
   }
-  else
-  {
-    /*!< CMD55 */
-    SDIO_CmdInitStructure.SDIO_Argument = 0x00;
-    SDIO_CmdInitStructure.SDIO_CmdIndex = SD_CMD_APP_CMD;
-    SDIO_CmdInitStructure.SDIO_Response = SDIO_Response_Short;
-    SDIO_CmdInitStructure.SDIO_Wait = SDIO_Wait_No;
-    SDIO_CmdInitStructure.SDIO_CPSM = SDIO_CPSM_Enable;
-    SDIO_SendCommand(&SDIO_CmdInitStructure);
-    errorstatus = CmdResp1Error(SD_CMD_APP_CMD);
-  }
+
   /*!< CMD55 */
   SDIO_CmdInitStructure.SDIO_Argument = 0x00;
   SDIO_CmdInitStructure.SDIO_CmdIndex = SD_CMD_APP_CMD;
