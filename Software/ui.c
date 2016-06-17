@@ -259,13 +259,13 @@ void UI_PickBg(unsigned char first)
     FLASH_ClearFlag(FLASH_FLAG_EOP | FLASH_FLAG_OPERR | FLASH_FLAG_WRPERR |
                   FLASH_FLAG_PGAERR | FLASH_FLAG_PGPERR|FLASH_FLAG_PGSERR); 
     UI_EraseBG();
-    res = znFAT_ReadData(&FileInfo,0,60000,EPD_FB); 
+    znFAT_ReadData(&FileInfo,0,60000,EPD_FB); 
     UI_ProgBG(0);
-    res = znFAT_ReadData(&FileInfo,60000,60000,EPD_FB);
+    znFAT_ReadData(&FileInfo,60000,60000,EPD_FB);
     UI_ProgBG(60000);
-    res = znFAT_ReadData(&FileInfo,120000,60000,EPD_FB);
+    znFAT_ReadData(&FileInfo,120000,60000,EPD_FB);
     UI_ProgBG(120000);
-    res = znFAT_ReadData(&FileInfo,180000,32000,EPD_FB);
+    znFAT_ReadData(&FileInfo,180000,32000,EPD_FB);
     UI_ProgBG(180000);
     FLASH_Lock();
   }
