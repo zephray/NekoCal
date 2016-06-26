@@ -5,7 +5,12 @@
 #include "epd.h"
 
 unsigned char EPD_FB[60000]; //1bpp Framebuffer
+
+#ifdef __USE_FIXED_BG__
+#include <bg.h>
+#else
 unsigned char EPD_BG[240000] @ 0x08020000; //MAGIC
+#endif
 
 #define MIN(a,b) (((a)<(b))?(a):(b))
 #define MAX(a,b) (((a)>(b))?(a):(b))
@@ -31,6 +36,32 @@ const unsigned char wave_init[FRAME_INIT_LEN]=
 0,0,
 };
 
+
+/*FOR NON-H SCREEN
+
+#define FRAME_INIT_FAST_LEN     33
+
+const unsigned char wave_init_fast[FRAME_INIT_FAST_LEN]=
+{
+  0x55,0x55,0x55,0x55,0x55,0x55,0x55,0x55,
+  0xaa,0xaa,0xaa,0xaa,0xaa,0xaa,0xaa,0xaa,
+  0x55,0x55,0x55,0x55,0x55,0x55,0x55,0x55,
+  0xaa,0xaa,0xaa,0xaa,0xaa,0xaa,0xaa,0xaa,
+  0,
+};
+
+const unsigned char timA[16] =
+{
+// 1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16
+  90,90,90,90,90,90,90,90,90,90,120,120,120,120,200,200
+};
+
+#define timB 20
+
+#define clearCount 4
+#define setCount 4*/
+
+
 #define FRAME_INIT_FAST_LEN     21
 
 const unsigned char wave_init_fast[FRAME_INIT_FAST_LEN]=
@@ -52,6 +83,7 @@ const unsigned char timA[16] =
 
 #define clearCount 2
 #define setCount 2
+
 
 unsigned char g_dest_data[200];				//送到电子纸的一行数据缓存
 
@@ -403,7 +435,7 @@ void EPD_DispPic()
   unsigned long i;
   unsigned char *ptr;
   
-  ptr = EPD_BG;
+  ptr = (unsigned char *)EPD_BG;
   
     //从黑刷到灰度
   for(frame=0; frame<16; frame++)					

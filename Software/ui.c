@@ -4,14 +4,16 @@
 #include "ds3231.h"
 #include "znfat.h"
 
+#ifndef __USE_FIXED_BG__
 extern const unsigned char warning_bg[53000];
 
 unsigned int fcount,fsel;
 
+unsigned int bg_err;
+#endif
+
 const int color_bow = 1;
 const int color_wob = 0;
-
-unsigned int bg_err;
 
 u8 BCD2HEX(u8 val)
 {
@@ -224,6 +226,7 @@ void UI_ProgBG(unsigned long addr)
 
 void UI_PickBg(unsigned char first)
 {
+#ifndef __USE_FIXED_BG__
   struct znFAT_Init_Args Init_Args; //文件系统参数集合，用于记录文件系统的重要参数
   struct FileInfo FileInfo;	//文件参数集合
   unsigned char res=0;
@@ -271,6 +274,7 @@ void UI_PickBg(unsigned char first)
   }
   
   bg_err = res;
+#endif
 }
 
 
@@ -280,6 +284,9 @@ void UI_DispBG()
   unsigned int i;
   EPD_Power_On();
   EPD_FastClear();
+#ifdef __USE_FIXED_BG__
+  EPD_DispPic();
+#else
   if (bg_err)
   {
     for (i=0;i<53000;i++)
@@ -288,6 +295,7 @@ void UI_DispBG()
   }  
   else
     EPD_DispPic();
+#endif
   EPD_Power_Off(); 
 }
 

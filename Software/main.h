@@ -4,6 +4,8 @@
 #include "stm32f4xx.h"
 #include <stdio.h>
 
+//#define __USE_FIXED_BG__
+
 extern __IO uint8_t ShiftState;
 
 /* Exported macro ------------------------------------------------------------*/

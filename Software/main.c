@@ -66,7 +66,7 @@ int main(void)
   //printf("Main Clock Frequency: %d MHz\r\n",(RCC_Clocks.HCLK_Frequency/1000000));
 
   //NVIC_Config();
-  PM_SetCPUFreq(120);
+  //PM_SetCPUFreq(120);
   
   EPD_Init();
   EPD_Power_On();
