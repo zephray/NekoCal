@@ -2,6 +2,8 @@
 #include <string>
 #include <stdint.h>
 
+#define TO_FILE
+
 using namespace std;
 using namespace cv;
 
@@ -31,6 +33,26 @@ int main(int argc, char *argv[]) {
 	}
 	else {
 		cfg.srcFile = argv[1];
+	}
+	char config_path[1024], *p = config_path;
+	strcpy(config_path, argv[0]);
+	p += strlen(config_path);
+	while (p != config_path && *p != '\\')p--;
+	*p = '\0';
+	strcat(config_path, "\\config.ini");
+	FILE *config_file = fopen(config_path, "r");
+	if (config_file != nullptr) {
+		char line[1024];
+		while (!feof(config_file)) {
+			fgets(line, 1024, config_file);
+			if (strstr(line, "width")) {
+				sscanf(strchr(line, '=') + 1, "%d", &cfg.target_witdh);
+			}
+			if (strstr(line, "height")) {
+				sscanf(strchr(line, '=') + 1, "%d", &cfg.target_height);
+			}
+		}
+		fclose(config_file);
 	}
 	Mat src = imread(cfg.srcFile);
 	
@@ -73,20 +95,20 @@ int main(int argc, char *argv[]) {
 	for (int y = 0; y != gray.rows; ++y) {
 		for (int x = 0; x != gray.cols; x += 2) {
 			uint8_t pixel = ((gray.at<uchar>(y, x) & 0xF0 ) | (gray.at<uchar>(y, x + 1) >> 4) );
-			bitmap[(y * gray.cols + x) / 2] = pixel;
+			bitmap[(y * gray.cols + x) / 2] = ~pixel;
 		}
 	}
-
+#ifdef TO_FILE
 	cfg.destFile = string(cfg.srcFile) + ".ebm";
 	FILE *fp = fopen(cfg.destFile.c_str(), "wb+");
 	fwrite(bitmap, cfg.target_height * cfg.target_witdh / 2, 1, fp);
 	fclose(fp);
-	/*
+#else
 	namedWindow("image", CV_WINDOW_AUTOSIZE);
 	imshow("image", gray);
-	*/
 	waitKey();
-
+#endif
+	delete[]bitmap;
 	return EXIT_SUCCESS;
 }
 
