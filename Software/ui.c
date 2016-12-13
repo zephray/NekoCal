@@ -83,7 +83,7 @@ void UI_Setting_Main()
   const unsigned char ValMap[7] = {0,6,5,4,2,1,0};
   
   EPD_Power_On();
-  EPD_FastClear();
+  EPD_Clear();
   EPD_Power_Off();
   
   EPD_ClearFB(0xFF);
@@ -283,7 +283,7 @@ void UI_DispBG()
 { 
   unsigned int i;
   EPD_Power_On();
-  EPD_FastClear();
+  EPD_Clear();
 #ifdef __USE_FIXED_BG__
   EPD_DispPic();
 #else

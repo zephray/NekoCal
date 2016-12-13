@@ -1,11 +1,8 @@
 #include "main.h"
 #include "usart.h"
-//#include "sdio_sd.h"
 #include "sdcard.h"
 #include "epd.h"
-#include "image.h"
-#include "sram.h"
-//#include "dac.h"
+#include "font.h"
 #include "powerman.h"
 #include "ds3231.h"
 
@@ -70,7 +67,7 @@ int main(void)
   
   EPD_Init();
   EPD_Power_On();
-  EPD_FastClear();
+  EPD_Clear();
   EPD_Power_Off();
   
   IIC_Config();
