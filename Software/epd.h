@@ -7,6 +7,10 @@
 
 #include "main.h"
 
+//Use new ED060SC4 H1/H2 screens
+//if you are using ED060SC4 without any postfix, comment this
+#define USE_H_SCREEN 
+
 extern unsigned char EPD_FB[60000];
 
 #define PulseDelay()    {}

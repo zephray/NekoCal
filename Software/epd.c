@@ -4,12 +4,18 @@
 *******************************************************************************/
 #include "epd.h"
 
+/*******************************************************************************
+
+
+
+*******************************************************************************/
+
 unsigned char EPD_FB[60000]; //1bpp Framebuffer
 
 #ifdef __USE_FIXED_BG__
 #include <bg.h>
 #else
-unsigned char EPD_BG[240000] @ 0x08020000; //MAGIC
+unsigned char EPD_BG[240000] @ 0x08020000; //fixed address of image
 #endif
 
 #define MIN(a,b) (((a)<(b))?(a):(b))
@@ -20,28 +26,12 @@ extern const unsigned char Font_Ascii_24X48E[];
 extern const unsigned char Font_Ascii_12X24E[];
 //extern const unsigned char WQY_ASCII_24[];
 
-//黑白黑白刷屏。最终到达白背景
-#define FRAME_INIT_LEN 		35
+#ifndef USE_H_SCREEN
+
+//Init waveform, basiclly alternating between black and white
+#define FRAME_INIT_LEN     33
+
 const unsigned char wave_init[FRAME_INIT_LEN]=
-{
-0x55,0x55,0x55,0x55,
-0xaa,0xaa,0xaa,0xaa,
-0x55,0x55,0x55,0x55,
-0xaa,0xaa,0xaa,0xaa,
-0,
-0x55,0x55,0x55,0x55,
-0xaa,0xaa,0xaa,0xaa,
-0x55,0x55,0x55,0x55,
-0xaa,0xaa,0xaa,0xaa,
-0,0,
-};
-
-
-/*FOR NON-H SCREEN
-
-#define FRAME_INIT_FAST_LEN     33
-
-const unsigned char wave_init_fast[FRAME_INIT_FAST_LEN]=
 {
   0x55,0x55,0x55,0x55,0x55,0x55,0x55,0x55,
   0xaa,0xaa,0xaa,0xaa,0xaa,0xaa,0xaa,0xaa,
@@ -50,21 +40,29 @@ const unsigned char wave_init_fast[FRAME_INIT_FAST_LEN]=
   0,
 };
 
+//line delay for different shades of grey
+//note that delay is accumulative
+//it means that if it's the level 4 grey
+//the total line delay is 90+90+90+90=360
+//this could be used as a method of rough gamma correction
+//these settings only affect 4bpp mode
 const unsigned char timA[16] =
 {
-// 1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16
-  90,90,90,90,90,90,90,90,90,90,120,120,120,120,200,200
+// 1  2  3  4  5  6  7  8  9 10 11  12  13  14  15
+  90,90,90,90,90,90,90,90,90,90,120,120,120,120,200
 };
 
 #define timB 20
 
+//this only affect 1bpp mode
 #define clearCount 4
-#define setCount 4*/
+#define setCount 4
 
+#else
 
-#define FRAME_INIT_FAST_LEN     21
+#define FRAME_INIT_LEN     21
 
-const unsigned char wave_init_fast[FRAME_INIT_FAST_LEN]=
+const unsigned char wave_init[FRAME_INIT_LEN]=
 {
   0x55,0x55,0x55,0x55,0x55,
   0xaa,0xaa,0xaa,0xaa,0xaa,
@@ -75,8 +73,8 @@ const unsigned char wave_init_fast[FRAME_INIT_FAST_LEN]=
 
 const unsigned char timA[16] =
 {
-// 1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16
-  30,20,20,15,15,15,15,15,20,20,20,20,20,40,50,60
+// 1  2  3  4  5  6  7  8  9 10 11 12 13 14 15
+  30,20,20,15,15,15,15,15,20,20,20,20,20,40,50
 };
 
 #define timB 40
@@ -84,8 +82,10 @@ const unsigned char timA[16] =
 #define clearCount 2
 #define setCount 2
 
+#endif
 
-unsigned char g_dest_data[200];				//送到电子纸的一行数据缓存
+
+unsigned char g_dest_data[200];//Line data buffer
 
 void DelayCycle(unsigned long x)
 {
@@ -95,6 +95,7 @@ void DelayCycle(unsigned long x)
   }
 }
 
+//Us delay that is not accurate
 void Delay_Us(unsigned long x)
 {
   unsigned long a;
@@ -117,7 +118,7 @@ void EPD_GPIO_Init()
   RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOE,ENABLE);
   RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOD,ENABLE);
   
-  GPIOD->BSRRH = GPIO_Pin_4;//TURN OFF ALL VOLTAGES BEFORE NEXT
+  GPIOD->BSRRH = GPIO_Pin_4;//TURN OFF ALL VOLTAGES
   
   //Power controll
   GPIO_InitStructure.GPIO_Mode = GPIO_Mode_OUT;
@@ -362,25 +363,6 @@ void EPD_Start_Scan(void)
   EPD_Vclock_Quick();
 }
 
-void EPD_EncodeLine_Pic(u8 *new_pic, u8 frame)//纯白-》16灰
-{
-	int i,j;
-        unsigned char k,d;
-	
-        j=0;
-	for(i=0; i<200; i++)
-	{
-          d = 0;
-          k = new_pic[j++];
-          if ((k&0x0F)>frame) d |= 0x10;
-          if ((k>>4)>frame)   d |= 0x40;
-          k = new_pic[j++];
-          if ((k&0x0F)>frame) d |= 0x01;
-          if ((k>>4)>frame)   d |= 0x04;
-          g_dest_data[i] = d;	
-	}	
-}
-
 void EPD_Power_On(void)
 {
   GPIO_InitTypeDef GPIO_InitStructure;
@@ -411,24 +393,26 @@ void EPD_Clear(void)
   }
 }
 
-void EPD_FastClear(void)
+void EPD_EncodeLine_Pic(u8 *new_pic, u8 frame)//Encode data for grayscale image
 {
-  unsigned short line,frame,i;
-  
-  for(frame=0; frame<FRAME_INIT_FAST_LEN; frame++)			
-  {
-    for(i=0;i<200;i++)  g_dest_data[i]=wave_init_fast[frame];		
-    EPD_Start_Scan();
-    
-    for(line=0; line<600; line++)
-    {
-      EPD_Send_Row_Data( g_dest_data );				
-    }
-    EPD_Send_Row_Data( g_dest_data );
-  }
+	int i,j;
+        unsigned char k,d;
+	
+        j=0;
+	for(i=0; i<200; i++)
+	{
+          d = 0;
+          k = new_pic[j++];
+          if ((k&0x0F)>frame) d |= 0x10;
+          if ((k>>4)>frame)   d |= 0x40;
+          k = new_pic[j++];
+          if ((k&0x0F)>frame) d |= 0x01;
+          if ((k>>4)>frame)   d |= 0x04;
+          g_dest_data[i] = d;	
+	}	
 }
 
-void EPD_DispPic()
+void EPD_DispPic()//Display image in grayscale mode
 {
   unsigned short frame;
   signed long line;
@@ -437,8 +421,7 @@ void EPD_DispPic()
   
   ptr = (unsigned char *)EPD_BG;
   
-    //从黑刷到灰度
-  for(frame=0; frame<16; frame++)					
+  for(frame=0; frame<15; frame++)					
   {
     EPD_Start_Scan();
     for (i=0;i<200;i++) g_dest_data[i]=0x00;
@@ -454,71 +437,11 @@ void EPD_DispPic()
     
     EPD_Send_Row_Data( g_dest_data );				
   }
-  /*for(frame=0; frame<10; frame++)					
-  {
-    EPD_Start_Scan();
-    
-    for(line=0; line<skipBefore; line++)
-    {
-      EPD_SkipRow();
-    }
-    for(line=(lineCount-1); line>=0; line--)
-    {
-      EPD_EncodeLine_Pic(ptr + line*400, frame);		
-      EPD_Send_Row_Data_Slow(g_dest_data,timingA_2,timingB_2);		
-    }
-    EPD_Send_Row_Data_Slow(g_dest_data,timingA_2,timingB_2);	
-    for(line=0; line<skipAfter; line++)
-    {
-      EPD_SkipRow();
-    }
-    EPD_Send_Row_Data( g_dest_data );				
-  }
-  
-  for(frame=10; frame<12; frame++)					
-  {
-    EPD_Start_Scan();
-    
-    for(line=0; line<skipBefore; line++)
-    {
-      EPD_SkipRow();
-    }
-    for(line=(lineCount-1); line>=0; line--)
-    {
-      EPD_EncodeLine_Pic(ptr + line*400, frame);		
-      EPD_Send_Row_Data_Slow(g_dest_data,timingA_1,timingB_1);		
-    }
-    EPD_Send_Row_Data_Slow(g_dest_data,timingA_1,timingB_1);	
-    for(line=0; line<skipAfter; line++)
-    {
-      EPD_SkipRow();
-    }
-    EPD_Send_Row_Data( g_dest_data );				
-  }
-  
-  for(frame=12; frame<16; frame++)					
-  {
-    EPD_Start_Scan();
-    
-    for(line=0; line<skipBefore; line++)
-    {
-      EPD_SkipRow();
-    }
-    for(line=(lineCount-1); line>=0; line--)
-    {
-      EPD_EncodeLine_Pic(ptr + line*400, frame);		
-      EPD_Send_Row_Data(g_dest_data);		
-    }
-    EPD_Send_Row_Data( g_dest_data );
-    for(line=0; line<skipAfter; line++)
-    {
-      EPD_SkipRow();
-    }
-    EPD_Send_Row_Data( g_dest_data );				
-  }*/
 }
 
-void EPD_EncodeLine_To(u8 *new_pic)//纯白 ->单色
+//Encode data for monochrome image
+//From white to image
+void EPD_EncodeLine_To(u8 *new_pic)
 {
 	int i,j;
         unsigned char k,d;
@@ -542,7 +465,9 @@ void EPD_EncodeLine_To(u8 *new_pic)//纯白 ->单色
 	}	
 }
 
-void EPD_EncodeLine_From(u8 *new_pic)//单色 -> 纯黑
+//Encode data for clearing a monochrome image
+//From image to black
+void EPD_EncodeLine_From(u8 *new_pic)
 {
 	int i,j;
         unsigned char k,d;
@@ -566,6 +491,7 @@ void EPD_EncodeLine_From(u8 *new_pic)//单色 -> 纯黑
 	}	
 }
 
+//Display image in monochrome mode
 void EPD_DispScr(unsigned int startLine, unsigned int lineCount)
 {
   unsigned short frame;
@@ -603,6 +529,7 @@ void EPD_DispScr(unsigned int startLine, unsigned int lineCount)
   
 }
 
+//Clear image in monochrome mode
 void EPD_ClearScr(unsigned int startLine, unsigned int lineCount)
 {
   unsigned short frame;
@@ -657,8 +584,6 @@ void EPD_ClearScr(unsigned int startLine, unsigned int lineCount)
     }
     EPD_Send_Row_Data( g_dest_data );					
   }
-  
-  
 }
 
 
