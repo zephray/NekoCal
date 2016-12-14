@@ -3,15 +3,17 @@ NekoCal
 
 ![Photo](https://www.zephray.com/lib/exe/fetch.php?media=blog:2016:dsc04681_small.jpg "Photograph of Rev.2")
 
-### Overview
+## Overview
 
 A simple calendar using EPD as main display based on STM32 microcontroller. 
 
-### Project status
+## Project status
 
 Finished second revision. Third revision working in progress.
 
-### Hardware
+## Hardware
+
+### Rev2
 
  * Main Processor: STM32F207VET6
  * RAM: 128KB Internal
@@ -19,15 +21,24 @@ Finished second revision. Third revision working in progress.
  * Expansion: TF card slot support up to 4GB SDHC
  * Display: 6 inch ED060SC4
 
-### Software
+### Rev3
+
+ * Main Processor: STM32F207ZET6
+ * RAM: 128KB Internal + 1MB External
+ * ROM: 256KB Internal
+ * Expansion: TF card slot support up to 4GB SDHC
+ * Display: 6 inch ED060SC4
+ * Wireless: BLE4.0
+ 
+## Software
 
 App code run directly on raw hardware, no OS. 
 
-### Background images
+## Background images
 
 Use converter in Tools\image-converter to generate ebm images.
 
-### Licenses
+## Licenses
 
 MIT
 
