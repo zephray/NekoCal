@@ -28,7 +28,7 @@ Finished second revision. Third revision working in progress.
  * ROM: 256KB Internal
  * Expansion: TF card slot support up to 4GB SDHC
  * Display: 6 inch ED060SC4
- * Wireless: BLE4.0
+ * More GPIO available for user
  
 ## Software
 
