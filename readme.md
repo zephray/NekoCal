@@ -9,7 +9,7 @@ A simple calendar using EPD as main display based on STM32 microcontroller.
 
 ## Project status
 
-Finished second revision. Third revision working in progress.
+Finished second revision. Third revision temporarily suspended
 
 ## Hardware
 
