@@ -1,2 +1,2 @@
-��ͼƬ�ļ��Ϸŵ�to-file.exe�ϣ������һ���µ�ebm�ļ������г������ڸ�Ŀ¼�¡�
-���߰汾����� https://www.zephray.com/doku.php?id=projects:nekocal
+把图片文件拖放到to-file.exe上，会产生一个新的ebm文件，剪切出来放在根目录下。
+在线版本请访问 https://ntzyz.io/converter/
